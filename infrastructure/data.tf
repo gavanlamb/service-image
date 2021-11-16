@@ -19,7 +19,7 @@
 data "aws_iam_policy_document" "repair_images_bucket" {
   statement {
     actions = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.repair_images.arn}/*"]
+    resources = ["${aws_s3_bucket.repair_resized_images.arn}/*"]
 
     principals {
       type = "AWS"
@@ -29,7 +29,7 @@ data "aws_iam_policy_document" "repair_images_bucket" {
 
   statement {
     actions = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.repair_images.arn]
+    resources = [aws_s3_bucket.repair_resized_images.arn]
 
     principals {
       type = "AWS"

@@ -37,6 +37,13 @@ stages:
           - template: templates/build.lambda.yml
             parameters:
               lambdaName: authorisation
+      - job: resizer
+        displayName: Resizer
+        dependsOn: setup
+        steps:
+          - template: templates/build.lambda.yml
+            parameters:
+              lambdaName: resizer
 
   - stage: Preview
     displayName: Preview

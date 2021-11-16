@@ -22,7 +22,7 @@ jobs:
       - template: aws/terraform/plan.yml@templates
         parameters:
           artifactName: ${{ parameters.environment }}_${{ parameters.region }}
-          planAdditionalCommandOptions: -var-file=variables/${{ parameters.environment }}.${{ parameters.region }}.tfvars -var="authorisation_filename=authorisation@$(Build.BuildNumber)/authorisation@$(Build.BuildNumber).zip"
+          planAdditionalCommandOptions: -var-file=variables/${{ parameters.environment }}.${{ parameters.region }}.tfvars -var="authorisation_filename=authorisation@$(Build.BuildNumber)/authorisation@$(Build.BuildNumber).zip" -var="resizer_filename=resizer@$(Build.BuildNumber)/resizer@$(Build.BuildNumber).zip"
           serviceConnectionName: ${{ parameters.serviceConnectionName }}
           stateBucketName: ${{ parameters.stateBucketName }}
           stateLockTableName: ${{ parameters.stateLockTableName }}
@@ -44,6 +44,8 @@ jobs:
           steps:
             - download: current
               artifact: authorisation@$(Build.BuildNumber)
+            - download: current
+              artifact: resizer@$(Build.BuildNumber)
             - template: aws/terraform/apply.yml@templates
               parameters:
                 artifactName: ${{ parameters.environment }}_${{ parameters.region }}
