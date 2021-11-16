@@ -15,9 +15,7 @@ pool:
 trigger: none
 
 pr:
-  branches:
-    include:
-      - "main"
+  - "main"
 
 stages:
   stages:

@@ -72,10 +72,13 @@ resource "aws_s3_bucket_policy" "repair_images" {
 // Authorisation
 /// Lambda
 resource "aws_lambda_function" "authorisation" {
+  provider = aws.us-east-1
+  
   function_name = local.authorisation_name
   description = "Authorisation lambda for Cloudfront"
 
   runtime = "nodejs14.x"
+  handler = "lambda.handler"
   publish = true
   role = aws_iam_role.authorisation.arn
 
@@ -84,15 +87,21 @@ resource "aws_lambda_function" "authorisation" {
 
 /// Log group
 resource "aws_cloudwatch_log_group" "authorisation" {
-  name = "/aws/lambda/${local.authorisation_name}"
+  provider = aws.us-east-1
+  
+  name = "/aws/lambda/us-east-1.${local.authorisation_name}"
 }
 
 /// IAM
 resource "aws_iam_role" "authorisation" {
+  provider = aws.us-east-1
+  
   name = local.authorisation_name
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy_doc.json
 }
 resource "aws_iam_role_policy_attachment" "authorisation_cloudwatch" {
+  provider = aws.us-east-1
+  
   role = aws_iam_role.authorisation.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }

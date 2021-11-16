@@ -7,12 +7,8 @@ const ZipPlugin = require('zip-webpack-plugin');
 module.exports = () => {
     return {
         entry: './src/lambda.ts',
-        
         mode: 'production',
         target: 'node',
-
-        devtool: 'inline-source-map',
-        
         module: {
             rules: [
                 {
@@ -22,18 +18,19 @@ module.exports = () => {
                 }
             ]
         },
-        resolve: {
-            extensions: ['.ts', '.js'],
-        },
         optimization: {
-            minimize: true
+            minimize: false
         },
         performance: {
             hints: false
         },
+        resolve: {
+            extensions: ['.ts', '.js'],
+        },
         output: {
+            libraryTarget: 'commonjs',
             path: path.join(__dirname, 'webpack'),
-            filename: 'lambda.js',
+            filename: 'lambda.js'
         },
         plugins: [
             new ZipPlugin({
