@@ -1,4 +1,5 @@
 ﻿import sharp from "sharp";
+import {PassThrough, Readable} from "stream";
 
 const getFormatConfigForStream = (
     fileType: string): sharp.AvailableFormatInfo => {
@@ -8,47 +9,59 @@ const getFormatConfigForStream = (
     return {
         id: id,
         input: {
-            buffer: true,
+            buffer: false,
             file: false,
-            stream: false,
+            stream: true,
         },
         output: {
-            buffer: true,
+            buffer: false,
             file: false,
-            stream: false,
+            stream: true,
         },
     };
 };
 
-const alterImage = (
-    image: Buffer,
-    height: number | null,
+const setupSharp = (
+    format: string,
     width: number | null,
-    quality: number | null,
-    format: string | null
-):Promise<Buffer> => {
-    // @ts-ignore
-    let sharpConfig = sharp(image, { 
+    height: number | null,
+    quality: number): sharp.Sharp => {
+    let config = sharp({
             failOnError: false,
             limitInputPixels: true
         })
         .rotate()
         .withMetadata();
 
-    if (height !== null || width !== null) {
-        sharpConfig = sharpConfig.resize(width, height, { withoutEnlargement: true });
+    if(width || height){
+        config = config.resize(width, height, { 
+            withoutEnlargement: true 
+        });
     }
 
-    if (format != null) {
-        sharpConfig = sharpConfig.toFormat(
-            getFormatConfigForStream(format),
-            {
-                quality: quality !== null ? quality : 100,
-                progressive: true
-            });
-    }
+    return config.toFormat(
+        getFormatConfigForStream(format),
+        {
+            quality,
+            progressive: true
+        });
+}
 
-    return sharpConfig.toBuffer();
+const alterImage = (
+    source: Readable,
+    destination: PassThrough,
+    format: string,
+    height: number | null,
+    width: number | null,
+    quality: number):void => {
+    const sharp = setupSharp(
+        format, 
+        width, 
+        height, 
+        quality);
+    
+    sharp.pipe(destination)
+    source.pipe(sharp);
 }
 
 export { alterImage }

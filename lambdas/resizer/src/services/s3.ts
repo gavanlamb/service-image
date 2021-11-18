@@ -1,11 +1,12 @@
 ﻿import {PromiseResult} from 'aws-sdk/lib/request';
 import logger from '../utilities/logger';
-import * as aws from 'aws-sdk';
-const s3 = new aws.S3();
+import {AWSError, S3} from 'aws-sdk';
+import {PassThrough, Readable} from "stream";
+const s3 = new S3();
 
 const getImageFromS3 = (
     bucketName: string,
-    key: string): Promise<PromiseResult<aws.S3.GetObjectOutput, aws.AWSError>> => {
+    key: string): Readable => {
     const params = {
         Bucket: bucketName,
         Key: key,
@@ -16,19 +17,60 @@ const getImageFromS3 = (
             key,
             bucketName,
         },
-        'Getting image %s from %s bucket',
+        'Getting image %s from %s bucket as a stream',
         key,
         bucketName
     );
 
     return s3
         .getObject(params)
-        .promise();
+        .createReadStream();
 };
 
-const getImageTags = (
+const doesImageExist = async (
     bucketName: string,
-    key: string): Promise<PromiseResult<aws.S3.GetObjectTaggingOutput, aws.AWSError>> => {
+    key: string): Promise<boolean> => {
+    
+    try {
+         await getHeadData(bucketName, key);
+         return true;
+    } catch (error) {
+        return false;
+    }
+};
+
+const uploadImageStreamToS3 = (
+    bucketName: string,
+    key: string,
+    contentType: string,
+    contentDisposition: string): { stream: PassThrough; promise: Promise<S3.ManagedUpload.SendData> } => {
+    logger.info(
+        {
+            key,
+            bucketName,
+        },
+        'Uploading %s from %s bucket',
+        key,
+        bucketName
+    );
+
+    const pass = new PassThrough();
+    const promise = s3.upload({
+        Bucket: bucketName,
+        Key: key,
+        ContentType: contentType,
+        ContentDisposition: contentDisposition,
+        Body: pass}).promise()
+
+    return {
+        stream: pass,
+        promise
+    }
+};
+
+const getHeadData = (
+    bucketName: string,
+    key: string):Promise<PromiseResult<S3.HeadObjectOutput, AWSError>> => {
     const params = {
         Bucket: bucketName,
         Key: key,
@@ -39,14 +81,39 @@ const getImageTags = (
             key,
             bucketName,
         },
-        'Getting image tags %s from %s bucket',
+        'Getting head data for %s from %s bucket',
         key,
         bucketName
     );
 
     return s3
-        .getObjectTagging(params)
+        .headObject(params)
         .promise();
-};
+}
 
-export { getImageFromS3, getImageTags };
+const generateDestinationKey = (
+    path: string,
+    width: number | null,
+    height: number | null,
+    quality: number): string => {
+    const segments = path.split("/")
+    return `${segments[0]}/${width ?? "MAX"}*${height ?? "MAX"}*${quality}/${segments[1]}`;
+}
+
+const getSourceKeyFromPath = (
+    path: string): string => {
+    const splitPath = path.split("/");
+    
+    return `${splitPath[0]}/${splitPath[1]}`;
+}
+
+const getBucketNameFromDomainName = (
+    domainName: string): string => domainName.split('.')[0] as string;
+
+const getSourceBucketName = (
+    destinationBucketName: string): string => {
+    // TODO update with all cases. Edge lambdas do not support environment variables 💩 
+    return destinationBucketName.replace("-altered", "");
+}
+
+export { doesImageExist, uploadImageStreamToS3, getImageFromS3, getHeadData, generateDestinationKey, getBucketNameFromDomainName, getSourceKeyFromPath, getSourceBucketName };

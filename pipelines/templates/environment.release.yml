@@ -27,16 +27,10 @@ jobs:
           stateBucketName: ${{ parameters.stateBucketName }}
           stateLockTableName: ${{ parameters.stateLockTableName }}
           workspaceName: repair-images-delivery-infrastructure-${{ parameters.environment }}
-          
-  - template: job/approve.yml@templates
-    parameters:
-      dependsOn: plan
-      timeoutInMinutes: 60
-      notifyUsers: '[Expensely]\Expensely Team'
-      
+
   - deployment: apply
     displayName: Apply
-    dependsOn: approve
+    dependsOn: plan
     environment: ${{ parameters.environment }}
     strategy:
       runOnce:
