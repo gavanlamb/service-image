@@ -7,8 +7,8 @@ resource "aws_cloudfront_distribution" "image_distribution" {
   price_class = "PriceClass_All"
   
   origin {
-    domain_name = aws_s3_bucket.repair_resized_images.bucket_regional_domain_name
-    origin_id = aws_s3_bucket.repair_resized_images.id
+    domain_name = aws_s3_bucket.altered_image_bucket.bucket_regional_domain_name
+    origin_id = aws_s3_bucket.altered_image_bucket.id
     s3_origin_config {
       origin_access_identity = aws_cloudfront_origin_access_identity.repair_images.cloudfront_access_identity_path
     }
@@ -26,8 +26,8 @@ resource "aws_cloudfront_distribution" "image_distribution" {
   default_cache_behavior {
     allowed_methods = ["GET", "HEAD", "OPTIONS"]
     cached_methods = ["GET", "HEAD"]
-
-    target_origin_id = aws_s3_bucket.repair_resized_images.id
+    
+    target_origin_id = aws_s3_bucket.altered_image_bucket.id
     default_ttl = 3888000
     min_ttl = 3888000
     max_ttl = 5184000
@@ -44,7 +44,7 @@ resource "aws_cloudfront_distribution" "image_distribution" {
       lambda_arn = aws_lambda_function.authorisation.qualified_arn
     }
     lambda_function_association {
-      event_type = "origin-response"
+      event_type = "origin-request"
       lambda_arn = aws_lambda_function.resizer.qualified_arn
     }
   }
@@ -55,14 +55,21 @@ resource "aws_cloudfront_origin_access_identity" "repair_images" {
 }
 
 
-
 /// S3 bucket
-resource "aws_s3_bucket" "repair_resized_images" {
-  bucket = local.bucket_name
+resource "aws_s3_bucket" "altered_image_bucket" {
+  bucket = local.altered_image_bucket_name
   acl = "private"
+
+  lifecycle_rule {
+    enabled = true
+
+    noncurrent_version_expiration {
+      days = 45
+    }
+  }
 }
-resource "aws_s3_bucket_public_access_block" "repair_resized_images" {
-  bucket = aws_s3_bucket.repair_resized_images.id
+resource "aws_s3_bucket_public_access_block" "altered_image_bucket" {
+  bucket = aws_s3_bucket.altered_image_bucket.id
 
   block_public_acls = true
   block_public_policy = true
@@ -70,11 +77,34 @@ resource "aws_s3_bucket_public_access_block" "repair_resized_images" {
   restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_policy" "repair_resized_images" {
-  bucket = aws_s3_bucket.repair_resized_images.id
-  policy = data.aws_iam_policy_document.repair_images_bucket.json
+resource "aws_s3_bucket_policy" "altered_image_bucket" {
+  bucket = aws_s3_bucket.altered_image_bucket.id
+  policy = data.aws_iam_policy_document.altered_image_bucket.json
 }
-
+resource "aws_iam_policy" "altered_image_bucket_put" {
+  name = "${aws_s3_bucket_policy.altered_image_bucket.id}-put"
+  policy = data.aws_iam_policy_document.altered_image_bucket_put.json
+}
+data "aws_iam_policy_document" "altered_image_bucket_put" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:PutObject"
+    ]
+    resources = [
+      "${aws_s3_bucket.altered_image_bucket.arn}/*",
+    ]
+  }
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:ListBucket"
+    ]
+    resources = [
+      aws_s3_bucket.altered_image_bucket.arn
+    ]
+  }
+}
 
 
 // Authorisation
@@ -159,9 +189,15 @@ resource "aws_iam_role_policy_attachment" "resizer_cloudwatch" {
   role = aws_iam_role.resizer.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
-resource "aws_iam_role_policy_attachment" "resizer_s3" {
+resource "aws_iam_role_policy_attachment" "resizer_s3_get" {
   provider = aws.us-east-1
 
   role = aws_iam_role.resizer.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+}
+resource "aws_iam_role_policy_attachment" "resizer_s3_put" {
+  provider = aws.us-east-1
+
+  role = aws_iam_role.resizer.name
+  policy_arn = aws_iam_policy.altered_image_bucket_put.arn
 }

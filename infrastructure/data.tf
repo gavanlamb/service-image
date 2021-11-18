@@ -16,10 +16,10 @@
   }
 }
 
-data "aws_iam_policy_document" "repair_images_bucket" {
+data "aws_iam_policy_document" "altered_image_bucket" {
   statement {
     actions = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.repair_resized_images.arn}/*"]
+    resources = ["${aws_s3_bucket.altered_image_bucket.arn}/*"]
 
     principals {
       type = "AWS"
@@ -29,11 +29,15 @@ data "aws_iam_policy_document" "repair_images_bucket" {
 
   statement {
     actions = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.repair_resized_images.arn]
+    resources = [aws_s3_bucket.altered_image_bucket.arn]
 
     principals {
       type = "AWS"
       identifiers = [aws_cloudfront_origin_access_identity.repair_images.iam_arn]
     }
   }
+}
+
+data "aws_s3_bucket" "image_bucket" {
+  bucket = var.image_bucket_name
 }
