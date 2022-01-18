@@ -19,7 +19,7 @@ variable "image_bucket_name" {
 
 locals {
   application_name = "expensely-images-${lower(var.environment)}"
-  altered_image_bucket_name = "expensely-altered-images-${lower(var.environment)}-${var.region}"
+  altered_image_bucket_name = "${var.image_bucket_name}-altered"
 
   authorisation_name = "${local.application_name}-authorisation"
   resizer_name = "${local.application_name}-resizer"
