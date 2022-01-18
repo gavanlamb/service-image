@@ -5,28 +5,31 @@
   - name: region
     displayName: Name of AWS region to deploy into
     type: string
-  - name: stateBucketName
-    displayName: Name of the S3 bucket name for the state file
+  - name: onTimeout
+    displayName: Action to take with manual validation task when timed out
     type: string
-  - name: stateLockTableName
-    displayName: Name of the DynamoDB table name for state locking
-    type: string
-  - name: serviceConnectionName
-    displayName: Service connection name, used for init & plan
-    type: string
+  - name: timeoutInMinutes
+    displayName: Action to take with manual validation task when timed out
+    type: number
+    default: 60
 
 jobs:
   - job: plan
     displayName: Plan
     steps:
-      - template: aws/terraform/plan.yml@templates
+      - template: aws/iam/configure.yml@templates
+      - template: terraform/plan.yml@templates
         parameters:
-          artifactName: ${{ parameters.environment }}_${{ parameters.region }}
-          planAdditionalCommandOptions: -var-file=variables/${{ parameters.environment }}.${{ parameters.region }}.tfvars -var="authorisation_filename=authorisation@$(Build.BuildNumber)/authorisation@$(Build.BuildNumber).zip" -var="resizer_filename=resizer@$(Build.BuildNumber)/resizer@$(Build.BuildNumber).zip"
-          serviceConnectionName: ${{ parameters.serviceConnectionName }}
-          stateBucketName: ${{ parameters.stateBucketName }}
-          stateLockTableName: ${{ parameters.stateLockTableName }}
+          artifactName: terraform.${{ parameters.environment }}.${{ parameters.region }}
+          planAdditionalCommandOptions: '-var-file="variables/${{ parameters.environment }}.${{ parameters.region }}.tfvars" -var="authorisation_filename=authorisation@$(Build.BuildNumber)/authorisation@$(Build.BuildNumber).zip" -var="resizer_filename=resizer@$(Build.BuildNumber)/resizer@$(Build.BuildNumber).zip"'
           workspaceName: repair-images-delivery-infrastructure-${{ parameters.environment }}
+
+  - template: azure-devops/approve.yml@templates
+    parameters:
+      dependsOn: plan
+      onTimeout: ${{ parameters.onTimeout }}
+      timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+      userToNotify: '[Expensely]\Expensely Team'
 
   - deployment: apply
     displayName: Apply
@@ -40,7 +43,7 @@ jobs:
               artifact: authorisation@$(Build.BuildNumber)
             - download: current
               artifact: resizer@$(Build.BuildNumber)
-            - template: aws/terraform/apply.yml@templates
+            - template: aws/iam/configure.yml@templates
+            - template: terraform/apply.yml@templates
               parameters:
-                artifactName: ${{ parameters.environment }}_${{ parameters.region }}
-                serviceConnectionName: ${{ parameters.serviceConnectionName }}
+                artifactName: terraform.${{ parameters.environment }}.${{ parameters.region }}
